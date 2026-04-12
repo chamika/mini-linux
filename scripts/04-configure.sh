@@ -72,6 +72,7 @@ sed "s/MINI_LINUX_USER/${MINI_LINUX_USER}/g" \
 # --- Auto-start Hyprland ---
 log_info "Configuring Hyprland auto-start..."
 BASH_PROFILE="${ROOTFS}/home/${MINI_LINUX_USER}/.bash_profile"
+mkdir -p "${ROOTFS}/home/${MINI_LINUX_USER}"
 cat > "${BASH_PROFILE}" <<'EOF'
 # Auto-start Hyprland on TTY1
 if [ -z "$WAYLAND_DISPLAY" ] && [ "$XDG_VTNR" -eq 1 ]; then
