@@ -22,9 +22,18 @@ fi
 
 cd "${KERNEL_SRC}"
 
+# Use GCC 12 — GCC 13/14 default to C23 mode which breaks kernel 6.x builds
+# (bool/false become keywords, conflicting with kernel typedefs)
+KERNEL_CC="${KERNEL_CC:-gcc-12}"
+if ! command -v "${KERNEL_CC}" &>/dev/null; then
+    log_warn "${KERNEL_CC} not found, falling back to system gcc. Run 'make setup' to install gcc-12."
+    KERNEL_CC="gcc"
+fi
+log_info "Using compiler: ${KERNEL_CC} ($(${KERNEL_CC} --version | head -1))"
+
 # Compile kernel
 log_info "Compiling kernel with ${NPROC} cores..."
-make -j"${NPROC}"
+make -j"${NPROC}" CC="${KERNEL_CC}"
 
 # Install modules to rootfs
 log_info "Installing kernel modules to rootfs..."

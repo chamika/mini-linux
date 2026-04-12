@@ -37,7 +37,9 @@ apt install -y \
     bc \
     libelf-dev \
     libssl-dev \
-    build-essential
+    build-essential \
+    gcc-12 \
+    g++-12
 
 # pacman is not in Ubuntu repos — install from upstream
 if ! command -v pacman &>/dev/null; then

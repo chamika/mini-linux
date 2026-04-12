@@ -27,10 +27,17 @@ fi
 
 cd "${KERNEL_SRC}"
 
+# Use GCC 12 — GCC 13/14 default to C23 mode which breaks kernel 6.x builds
+KERNEL_CC="${KERNEL_CC:-gcc-12}"
+if ! command -v "${KERNEL_CC}" &>/dev/null; then
+    log_warn "${KERNEL_CC} not found, falling back to system gcc."
+    KERNEL_CC="gcc"
+fi
+
 if [[ -f "${PREBUILT_CONFIG}" && $(wc -l < "${PREBUILT_CONFIG}") -gt 10 ]]; then
     log_info "Using pre-built kernel config from ${PREBUILT_CONFIG}"
     cp "${PREBUILT_CONFIG}" .config
-    make olddefconfig
+    make CC="${KERNEL_CC}" olddefconfig
     log_ok "Kernel config installed from pre-built config."
 else
     log_warn "No pre-built config found. Generating from running system..."
@@ -49,7 +56,7 @@ else
     # Strip to only loaded modules
     log_info "Running localmodconfig (stripping to loaded modules)..."
     log_warn "Make sure WiFi, Bluetooth, audio, camera, and USB devices are connected/active!"
-    yes "" | make localmodconfig
+    yes "" | make CC="${KERNEL_CC}" localmodconfig
 
     # Apply XPS 13 specific tweaks
     log_info "Applying XPS 13 optimizations..."
@@ -117,7 +124,7 @@ else
     # Disable watchdog (saves ~0.5s boot)
     ./scripts/config --disable CONFIG_WATCHDOG
 
-    make olddefconfig
+    make CC="${KERNEL_CC}" olddefconfig
 
     # Save the generated config back to the project
     cp .config "${PREBUILT_CONFIG}"
