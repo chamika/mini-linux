@@ -94,10 +94,24 @@ ALL_PACKAGES=(
 )
 
 log_info "Installing ${#ALL_PACKAGES[@]} packages into rootfs..."
+# Bind-mount a host-side cache dir so pacman can detect the mountpoint for
+# free-space checks (fails when rootfs is a plain directory, not a mountpoint).
+PKG_CACHE="${BUILD_DIR}/pacman-cache"
+mkdir -p "${PKG_CACHE}" "${ROOTFS}/var/cache/pacman/pkg"
+mount --bind "${PKG_CACHE}" "${ROOTFS}/var/cache/pacman/pkg"
+trap 'umount "${ROOTFS}/var/cache/pacman/pkg" 2>/dev/null || true' EXIT
+
 arch-chroot "${ROOTFS}" pacman -Syu --noconfirm "${ALL_PACKAGES[@]}"
+
+umount "${ROOTFS}/var/cache/pacman/pkg"
+trap - EXIT
 
 # --- AUR packages (Google Chrome) ---
 log_info "Setting up AUR package build..."
+
+# Re-mount cache for AUR build
+mount --bind "${PKG_CACHE}" "${ROOTFS}/var/cache/pacman/pkg"
+trap 'umount "${ROOTFS}/var/cache/pacman/pkg" 2>/dev/null || true' EXIT
 
 # Create a build user for makepkg (cannot run as root)
 arch-chroot "${ROOTFS}" useradd -m -s /bin/bash builder 2>/dev/null || true
@@ -116,6 +130,9 @@ arch-chroot "${ROOTFS}" su - builder -c "
 # Clean up build user
 arch-chroot "${ROOTFS}" userdel -r builder 2>/dev/null || true
 arch-chroot "${ROOTFS}" rm -f /etc/sudoers.d/builder
+
+umount "${ROOTFS}/var/cache/pacman/pkg"
+trap - EXIT
 
 # Clean pacman cache to reduce image size
 arch-chroot "${ROOTFS}" pacman -Scc --noconfirm
