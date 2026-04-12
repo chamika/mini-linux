@@ -31,7 +31,13 @@ apt install -y \
     qemu-utils \
     binfmt-support \
     qemu-user-static \
-    zstd
+    zstd \
+    flex \
+    bison \
+    bc \
+    libelf-dev \
+    libssl-dev \
+    build-essential
 
 # pacman is not in Ubuntu repos — install from upstream
 if ! command -v pacman &>/dev/null; then
