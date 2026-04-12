@@ -11,6 +11,10 @@ if [[ ! -d "${ROOTFS}/usr" ]]; then
     exit 1
 fi
 
+# Bind-mount rootfs onto itself so arch-chroot sees it as a real mountpoint
+mount --bind "${ROOTFS}" "${ROOTFS}"
+trap 'umount "${ROOTFS}" 2>/dev/null || true' EXIT
+
 # --- Timezone ---
 log_info "Setting timezone to UTC (change in config if needed)..."
 chroot_run ln -sf /usr/share/zoneinfo/UTC /etc/localtime
@@ -34,7 +38,9 @@ EOF
 # --- User account ---
 log_info "Creating user '${MINI_LINUX_USER}'..."
 chroot_run useradd -m -G wheel,video,audio,input,network,bluetooth -s /bin/bash "${MINI_LINUX_USER}" 2>/dev/null || true
-echo "${MINI_LINUX_USER}:${MINI_LINUX_USER}" | chroot_run chpasswd
+# Set password by writing the hash directly — chpasswd fails via PAM in a foreign-arch chroot
+HASHED_PW=$(openssl passwd -6 "${MINI_LINUX_USER}")
+sed -i "s|^${MINI_LINUX_USER}:[^:]*:|${MINI_LINUX_USER}:${HASHED_PW}:|" "${ROOTFS}/etc/shadow"
 log_warn "Default password is '${MINI_LINUX_USER}'. Change it on first boot!"
 
 # Enable wheel group in sudoers
@@ -78,3 +84,6 @@ chroot_run chown "${MINI_LINUX_USER}:${MINI_LINUX_USER}" "/home/${MINI_LINUX_USE
 chroot_run su - "${MINI_LINUX_USER}" -c "xdg-user-dirs-update" 2>/dev/null || true
 
 log_ok "System configuration complete."
+
+umount "${ROOTFS}"
+trap - EXIT
