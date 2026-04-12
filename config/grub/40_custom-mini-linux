@@ -1,0 +1,8 @@
+#!/bin/sh
+exec tail -n +3 $0
+# Custom GRUB entry for Mini-Linux (added by mini-linux installer)
+menuentry "Mini-Linux" --class arch --class gnu-linux --class os {
+    search --no-floppy --fs-uuid --set=root ROOTFS_UUID_PLACEHOLDER
+    linux /EFI/mini-linux/vmlinuz root=UUID=ROOTFS_UUID_PLACEHOLDER rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
+    initrd /EFI/mini-linux/intel-ucode.img /EFI/mini-linux/initramfs.img
+}
