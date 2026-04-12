@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# 06-boot-optimize.sh — Apply boot time optimizations to rootfs.
+
+source "$(dirname "$0")/common.sh"
+require_root
+
+log_info "=== Boot Optimization ==="
+
+if [[ ! -d "${ROOTFS}/usr" ]]; then
+    log_error "Rootfs not found. Run previous scripts first."
+    exit 1
+fi
+
+# --- Initramfs ---
+log_info "Installing optimized mkinitcpio.conf..."
+cp "${CONFIG_DIR}/mkinitcpio.conf" "${ROOTFS}/etc/mkinitcpio.conf"
+
+# Regenerate initramfs with minimal config
+log_info "Regenerating initramfs..."
+chroot_run mkinitcpio -P
+
+# --- Kernel command line (stored for bootloader config) ---
+log_info "Writing kernel command line..."
+mkdir -p "${ROOTFS}/etc/kernel"
+CMDLINE="root=UUID=ROOTFS_UUID rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable"
+echo "${CMDLINE}" > "${ROOTFS}/etc/kernel/cmdline"
+
+# --- Filesystem optimizations ---
+log_info "Configuring filesystem optimizations..."
+
+# NVMe scheduler — none is optimal for NVMe
+mkdir -p "${ROOTFS}/etc/udev/rules.d"
+cat > "${ROOTFS}/etc/udev/rules.d/60-iosched.rules" <<'EOF'
+# Set NVMe scheduler to none (no-op) — NVMe has its own internal scheduling
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/scheduler}="none"
+EOF
+
+# --- Tmpfiles — mount /tmp as tmpfs ---
+log_info "Configuring /tmp as tmpfs..."
+if ! grep -q "tmpfs.*/tmp" "${ROOTFS}/etc/fstab" 2>/dev/null; then
+    cat >> "${ROOTFS}/etc/fstab" <<EOF
+
+# tmpfs for /tmp — faster than disk, cleared on reboot
+tmpfs   /tmp    tmpfs   defaults,noatime,mode=1777,size=2G  0 0
+EOF
+fi
+
+# --- Disable core dumps (faster, saves disk) ---
+mkdir -p "${ROOTFS}/etc/systemd/coredump.conf.d"
+cat > "${ROOTFS}/etc/systemd/coredump.conf.d/disable.conf" <<EOF
+[Coredump]
+Storage=none
+ProcessSizeMax=0
+EOF
+
+# --- Journal size limit ---
+mkdir -p "${ROOTFS}/etc/systemd/journald.conf.d"
+cat > "${ROOTFS}/etc/systemd/journald.conf.d/size.conf" <<EOF
+[Journal]
+SystemMaxUse=50M
+RuntimeMaxUse=20M
+EOF
+
+log_ok "Boot optimizations applied."
+log_info "Expected boot timeline:"
+log_info "  UEFI POST → GRUB → Kernel → systemd → Hyprland"
+log_info "  ~0.5s       ~1s    ~1.5s    ~2.5s     ~1s = ~6.5s"
