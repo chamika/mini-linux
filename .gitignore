@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+*.img
+*.iso
+
+# Kernel build
+config/kernel/*.old
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
