@@ -103,27 +103,38 @@ EOF
 log_info "Installing GRUB bootloader..."
 # Ensure grub is installed in the rootfs
 if [[ ! -f "${MNT}/usr/bin/grub-install" ]]; then
+    log_info "grub not found — installing..."
+    # Need bind-mount for pacman to work
+    mount --bind "${MNT}" "${MNT}"
     arch-chroot "${MNT}" pacman -S --noconfirm grub efibootmgr
+    umount "${MNT}"
 fi
 
-arch-chroot "${MNT}" grub-install \
+# Run grub-install from the HOST against the loop device directly.
+# Running inside arch-chroot won't work because the EFI partition is
+# mounted on the host, not inside the chroot.
+grub-install \
     --target=x86_64-efi \
-    --efi-directory=/boot/efi \
-    --boot-directory=/boot \
-    --removable
+    --efi-directory="${MNT}/boot/efi" \
+    --boot-directory="${MNT}/boot" \
+    --removable \
+    --no-nvram
 
-# Configure GRUB
-cat > "${MNT}/etc/default/grub" <<EOF
-GRUB_DEFAULT=0
-GRUB_TIMEOUT=0
-GRUB_DISTRIBUTOR="Mini-Linux"
-GRUB_CMDLINE_LINUX_DEFAULT="quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable"
-GRUB_CMDLINE_LINUX=""
-GRUB_GFXMODE=auto
-GRUB_GFXPAYLOAD_LINUX=keep
+# Write grub.cfg manually — grub-mkconfig won't find our custom kernel
+# (it's not named vmlinuz-linux and there's no /etc/grub.d/10_linux entry for it)
+log_info "Writing GRUB config..."
+ROOT_UUID=$(blkid -s UUID -o value "${ROOT_PART}")
+mkdir -p "${MNT}/boot/grub"
+cat > "${MNT}/boot/grub/grub.cfg" <<EOF
+set default=0
+set timeout=0
+
+menuentry "Mini-Linux" {
+    search --no-floppy --fs-uuid --set=root ${ROOT_UUID}
+    linux   /boot/vmlinuz-mini-linux root=UUID=${ROOT_UUID} rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
+    initrd  /boot/initramfs-mini-linux.img
+}
 EOF
-
-arch-chroot "${MNT}" grub-mkconfig -o /boot/grub/grub.cfg
 
 # Unmount (trap will handle cleanup)
 log_info "Unmounting..."
