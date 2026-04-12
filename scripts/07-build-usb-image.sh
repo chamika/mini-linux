@@ -21,6 +21,22 @@ if [[ ! -d "${ROOTFS}/usr" ]]; then
     exit 1
 fi
 
+# Pre-flight: verify rootfs fits in the image
+# Layout: 1MiB gap + 512MiB EFI + rest for root → root ≈ IMAGE_SIZE - 513MiB
+IMAGE_BYTES=$(numfmt --from=iec "${IMAGE_SIZE}")
+EFI_BYTES=$(( 513 * 1024 * 1024 ))
+ROOT_AVAIL=$(( IMAGE_BYTES - EFI_BYTES ))
+ROOTFS_BYTES=$(du -sb "${ROOTFS}" | cut -f1)
+# Add 10% headroom for filesystem overhead
+ROOTFS_NEEDED=$(( ROOTFS_BYTES * 11 / 10 ))
+if (( ROOTFS_NEEDED > ROOT_AVAIL )); then
+    NEEDED_GIB=$(numfmt --to=iec ${ROOTFS_NEEDED})
+    log_error "Rootfs (${NEEDED_GIB} with overhead) exceeds root partition space."
+    log_error "Increase IMAGE_SIZE or reduce packages. Try: make usb-image IMAGE_SIZE=10G"
+    exit 1
+fi
+log_info "Size check passed: rootfs $(numfmt --to=iec ${ROOTFS_BYTES}), root partition $(numfmt --to=iec ${ROOT_AVAIL}) available."
+
 # Clean up from previous runs
 [[ -d "${MNT}" ]] && umount -R "${MNT}" 2>/dev/null || true
 
