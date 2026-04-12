@@ -41,5 +41,13 @@ log_info "Packages: ${BASE_PACKAGES[*]}"
 
 pacstrap -K "${ROOTFS}" "${BASE_PACKAGES[@]}"
 
+# Ensure the rootfs mirrorlist has an active server so arch-chroot/pacman works
+log_info "Configuring mirror in rootfs..."
+cat > "${ROOTFS}/etc/pacman.d/mirrorlist" <<'EOF'
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+EOF
+
 log_ok "Bootstrap complete. Rootfs at ${ROOTFS}"
 log_info "Rootfs size: $(du -sh "${ROOTFS}" | cut -f1)"

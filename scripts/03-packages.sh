@@ -12,6 +12,16 @@ if [[ ! -d "${ROOTFS}/usr" ]]; then
     exit 1
 fi
 
+# Ensure rootfs mirrorlist has active servers (pacstrap copies a fully-commented one)
+if ! grep -q "^Server" "${ROOTFS}/etc/pacman.d/mirrorlist" 2>/dev/null; then
+    log_info "Fixing rootfs mirrorlist (no active servers found)..."
+    cat > "${ROOTFS}/etc/pacman.d/mirrorlist" <<'EOF'
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
+EOF
+fi
+
 # --- Desktop environment (Hyprland + Wayland) ---
 DESKTOP_PACKAGES=(
     hyprland
