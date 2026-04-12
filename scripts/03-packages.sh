@@ -94,24 +94,24 @@ ALL_PACKAGES=(
 )
 
 log_info "Installing ${#ALL_PACKAGES[@]} packages into rootfs..."
-# Bind-mount a host-side cache dir so pacman can detect the mountpoint for
-# free-space checks (fails when rootfs is a plain directory, not a mountpoint).
+# Pacman checks free space by finding the mountpoint of / and the cache dir.
+# When the rootfs is a plain directory these lookups fail. Fix by bind-mounting
+# the rootfs onto itself (making it a real mountpoint) and mounting a host-side
+# cache dir so both checks resolve correctly.
 PKG_CACHE="${BUILD_DIR}/pacman-cache"
 mkdir -p "${PKG_CACHE}" "${ROOTFS}/var/cache/pacman/pkg"
+mount --bind "${ROOTFS}" "${ROOTFS}"
 mount --bind "${PKG_CACHE}" "${ROOTFS}/var/cache/pacman/pkg"
-trap 'umount "${ROOTFS}/var/cache/pacman/pkg" 2>/dev/null || true' EXIT
+cleanup_mounts_pkg() {
+    umount "${ROOTFS}/var/cache/pacman/pkg" 2>/dev/null || true
+    umount "${ROOTFS}" 2>/dev/null || true
+}
+trap cleanup_mounts_pkg EXIT
 
 arch-chroot "${ROOTFS}" pacman -Syu --noconfirm "${ALL_PACKAGES[@]}"
 
-umount "${ROOTFS}/var/cache/pacman/pkg"
-trap - EXIT
-
 # --- AUR packages (Google Chrome) ---
 log_info "Setting up AUR package build..."
-
-# Re-mount cache for AUR build
-mount --bind "${PKG_CACHE}" "${ROOTFS}/var/cache/pacman/pkg"
-trap 'umount "${ROOTFS}/var/cache/pacman/pkg" 2>/dev/null || true' EXIT
 
 # Create a build user for makepkg (cannot run as root)
 arch-chroot "${ROOTFS}" useradd -m -s /bin/bash builder 2>/dev/null || true
@@ -131,7 +131,7 @@ arch-chroot "${ROOTFS}" su - builder -c "
 arch-chroot "${ROOTFS}" userdel -r builder 2>/dev/null || true
 arch-chroot "${ROOTFS}" rm -f /etc/sudoers.d/builder
 
-umount "${ROOTFS}/var/cache/pacman/pkg"
+cleanup_mounts_pkg
 trap - EXIT
 
 # Clean pacman cache to reduce image size
