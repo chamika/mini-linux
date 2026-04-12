@@ -26,40 +26,119 @@ A minimal, fast-booting Linux distribution built on Arch Linux for the Dell XPS 
 └─────────────────────────────────────────────┘
 ```
 
-## Quick Start
+## Prerequisites
 
-> **Prerequisites:** Run on the Dell XPS 13 (booted into Ubuntu). See [docs/00-prerequisites.md](docs/00-prerequisites.md).
+- Dell XPS 13 9380 (or similar Intel laptop) booted into Ubuntu
+- ~10 GB free space in `/tmp` for the build workspace
+- 30–50 GB unallocated NVMe space for the final install (check with `lsblk`)
+- USB flash drive (8 GB+) for testing
+- Stable internet connection (~2 GB of packages downloaded during build)
+
+## Step 1 — Set up the host (run once)
+
+This installs `pacman`, `pacstrap`, and other build tools on your Ubuntu host.
+**Must be run before anything else.**
 
 ```bash
-# Clone this repo
 git clone <this-repo> && cd mini-linux
+make setup
+```
 
-# Build everything and create a USB image
+`make setup` will:
+1. Install Ubuntu build dependencies (`arch-install-scripts`, `parted`, `qemu-utils`, etc.)
+2. Build and install `pacman` from source (not available in Ubuntu repos)
+3. Write `/etc/pacman.conf` with Arch Linux mirror entries
+4. Download and install the Arch Linux keyring
+5. Initialise the pacman GPG keyring and sync the package databases
+
+## Step 2 — Build
+
+### Full automated build
+
+Runs all stages in order and produces a bootable USB image at `build/mini-linux.img`:
+
+```bash
 make all
+```
 
-# Flash to USB for testing
+### Step-by-step build
+
+Run each stage manually if you want more control or need to re-run a single step:
+
+| Step | Command | What it does |
+|------|---------|--------------|
+| 1 | `make bootstrap` | Creates the Arch Linux base rootfs (~2.3 GB) |
+| 2 | `make kernel-config` | Downloads Linux source and sets up `.config` for the XPS 13 |
+| 3 | `make kernel` | Compiles the kernel and installs it into the rootfs |
+| 4 | `make packages` | Installs Hyprland, Chrome (AUR), Thunar, Kitty, PipeWire, etc. |
+| 5 | `make configure` | Sets locale, timezone, hostname, user account, and services |
+| 6 | `make desktop` | Writes Hyprland, Waybar, Wofi, and Mako configuration files |
+| 7 | `make boot-optimize` | Strips initramfs, tunes systemd/journal, configures NVMe scheduler |
+| 8 | `make usb-image` | Packages the rootfs into a bootable 8 GB USB image |
+
+> **Note:** `make kernel-config` must be run before `make kernel`. If you skip it, the kernel build will fail with *"No kernel .config found"*.
+
+#### About `make kernel-config`
+
+- If `config/kernel/xps13-9380.config` exists it is used directly.
+- Otherwise, the script generates a config from the **running** kernel using `localmodconfig`. For best results, run it on the target XPS 13 hardware with WiFi, Bluetooth, audio, and USB devices active.
+
+## Step 3 — Test on USB
+
+```bash
+# Find your USB device
+lsblk
+
+# Flash the image (replace /dev/sdX with your USB drive)
 sudo dd if=build/mini-linux.img of=/dev/sdX bs=4M status=progress
+```
 
-# After testing, install to NVMe alongside Ubuntu
+Boot from the USB to verify everything works before writing to NVMe.
+
+**Default credentials:** username `user`, password `user` — change with `passwd` after first login.
+
+## Step 4 — Install to NVMe (dual-boot)
+
+> **Before running this step**, use GParted or `fdisk` to create unallocated partitions on your NVMe drive (30–50 GB for root, optional swap).
+
+```bash
 make install
 ```
 
-## Build Steps
+The installer will:
+1. Show current NVMe partition layout
+2. Prompt for the target root and swap partitions
+3. Format, copy the rootfs, and write `/etc/fstab`
+4. Install the kernel and initramfs to the shared ESP (`/EFI/mini-linux/`)
+5. Add a `Mini-Linux` entry to Ubuntu's GRUB and run `update-grub`
 
-| Step | Command | What it does |
-|------|---------|-------------|
-| 1 | `make bootstrap` | Creates Arch Linux base rootfs |
-| 2 | `make kernel` | Compiles custom kernel for XPS 13 |
-| 3 | `make packages` | Installs Hyprland, Chrome, Thunar, Kitty |
-| 4 | `make configure` | Users, locale, timezone, services |
-| 5 | `make desktop` | Hyprland + Waybar + theme configs |
-| 6 | `make boot-optimize` | Initramfs stripping, service tuning |
-| 7 | `make usb-image` | Generates bootable USB image |
-| 8 | `make install` | Installs to NVMe alongside Ubuntu |
+Reboot and select **Mini-Linux** from the GRUB menu.
+
+## Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MINI_LINUX_USER` | `user` | Username created in the rootfs |
+| `MINI_LINUX_HOSTNAME` | `mini-linux` | Hostname written to `/etc/hostname` |
+| `KERNEL_VERSION` | `6.12` | Linux kernel version to build |
+| `BUILD_DIR` | `/tmp/mini-linux-build` | Scratch space for rootfs and kernel source |
+| `IMAGE_SIZE` | `8G` | Size of the USB image |
+
+Override on the command line, e.g.:
+
+```bash
+sudo MINI_LINUX_USER=chamika make configure
+```
+
+## Cleaning up
+
+```bash
+make clean   # removes /tmp/mini-linux-build (does not touch build/mini-linux.img)
+```
 
 ## Documentation
 
-Each step has a detailed guide in [docs/](docs/).
+Detailed notes for each stage are in [docs/](docs/).
 
 ## License
 
