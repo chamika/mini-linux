@@ -11,6 +11,10 @@ if [[ ! -d "${ROOTFS}/usr" ]]; then
     exit 1
 fi
 
+# Bind-mount rootfs so arch-chroot sees it as a real mountpoint
+mount --bind "${ROOTFS}" "${ROOTFS}"
+trap 'umount "${ROOTFS}" 2>/dev/null || true' EXIT
+
 USER_HOME="${ROOTFS}/home/${MINI_LINUX_USER}"
 CONFIG_HOME="${USER_HOME}/.config"
 
@@ -58,7 +62,15 @@ cat > "${CONFIG_HOME}/icons/default/index.theme" <<EOF
 Inherits=Adwaita
 EOF
 
-# Fix ownership
-chroot_run chown -R "${MINI_LINUX_USER}:${MINI_LINUX_USER}" "/home/${MINI_LINUX_USER}"
+# Fix ownership using numeric UID/GID (name-based chown fails on host for chroot users)
+USER_UID=$(grep "^${MINI_LINUX_USER}:" "${ROOTFS}/etc/passwd" | cut -d: -f3)
+USER_GID=$(grep "^${MINI_LINUX_USER}:" "${ROOTFS}/etc/passwd" | cut -d: -f4)
+if [[ -n "${USER_UID}" ]]; then
+    chown -R "${USER_UID}:${USER_GID}" "${ROOTFS}/home/${MINI_LINUX_USER}"
+else
+    log_warn "Could not find UID for '${MINI_LINUX_USER}' — skipping chown"
+fi
 
 log_ok "Desktop environment configured."
+umount "${ROOTFS}" 2>/dev/null || true
+trap - EXIT

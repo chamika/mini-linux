@@ -11,6 +11,16 @@ if [[ ! -d "${ROOTFS}/usr" ]]; then
     exit 1
 fi
 
+# Bind-mount rootfs so arch-chroot sees it as a real mountpoint
+mount --bind "${ROOTFS}" "${ROOTFS}"
+trap 'umount "${ROOTFS}" 2>/dev/null || true' EXIT
+
+# Ensure mkinitcpio is present (may be missing if bootstrap ran before mirror was configured)
+if ! chroot_run bash -c "command -v mkinitcpio" &>/dev/null; then
+    log_info "mkinitcpio not found — installing..."
+    chroot_run pacman -S --noconfirm --needed mkinitcpio
+fi
+
 # --- Initramfs ---
 log_info "Installing optimized mkinitcpio.conf..."
 cp "${CONFIG_DIR}/mkinitcpio.conf" "${ROOTFS}/etc/mkinitcpio.conf"
@@ -65,3 +75,6 @@ log_ok "Boot optimizations applied."
 log_info "Expected boot timeline:"
 log_info "  UEFI POST → GRUB → Kernel → systemd → Hyprland"
 log_info "  ~0.5s       ~1s    ~1.5s    ~2.5s     ~1s = ~6.5s"
+
+umount "${ROOTFS}" 2>/dev/null || true
+trap - EXIT
