@@ -25,6 +25,20 @@ fi
 log_info "Installing optimized mkinitcpio.conf..."
 cp "${CONFIG_DIR}/mkinitcpio.conf" "${ROOTFS}/etc/mkinitcpio.conf"
 
+# Create a preset for our custom kernel (no Arch 'linux' package = no preset file)
+log_info "Creating mkinitcpio preset for custom kernel..."
+mkdir -p "${ROOTFS}/etc/mkinitcpio.d"
+cat > "${ROOTFS}/etc/mkinitcpio.d/mini-linux.preset" <<EOF
+ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-mini-linux"
+
+PRESETS=('default')
+
+default_config="/etc/mkinitcpio.conf"
+default_image="/boot/initramfs-mini-linux.img"
+default_options=""
+EOF
+
 # Regenerate initramfs with minimal config
 log_info "Regenerating initramfs..."
 chroot_run mkinitcpio -P
