@@ -79,7 +79,7 @@ if [ -z "$WAYLAND_DISPLAY" ] && [ "$XDG_VTNR" -eq 1 ]; then
     exec Hyprland
 fi
 EOF
-chroot_run chown "${MINI_LINUX_USER}:${MINI_LINUX_USER}" "/home/${MINI_LINUX_USER}/.bash_profile"
+chroot_run chown -R "${MINI_LINUX_USER}:${MINI_LINUX_USER}" "/home/${MINI_LINUX_USER}"
 
 # --- XDG user directories ---
 chroot_run su - "${MINI_LINUX_USER}" -c "xdg-user-dirs-update" 2>/dev/null || true

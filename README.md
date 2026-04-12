@@ -127,7 +127,7 @@ Reboot and select **Mini-Linux** from the GRUB menu.
 Override on the command line, e.g.:
 
 ```bash
-sudo MINI_LINUX_USER=chamika make configure
+make configure MINI_LINUX_USER=chamika MINI_LINUX_HOSTNAME=mini
 ```
 
 ## Cleaning up

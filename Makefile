@@ -2,8 +2,23 @@
 
 SCRIPTS := scripts
 
+# Configurable variables — override on the command line, e.g.:
+#   make configure MINI_LINUX_USER=chamika MINI_LINUX_HOSTNAME=mini
+MINI_LINUX_USER     ?= user
+MINI_LINUX_HOSTNAME ?= mini-linux
+KERNEL_VERSION      ?= 6.12
+BUILD_DIR           ?= /var/tmp/mini-linux-build
+IMAGE_SIZE          ?= 8G
+
+# Pass these explicitly to sudo so they survive env_reset in sudoers
+SUDO_ENV := MINI_LINUX_USER="$(MINI_LINUX_USER)" \
+            MINI_LINUX_HOSTNAME="$(MINI_LINUX_HOSTNAME)" \
+            KERNEL_VERSION="$(KERNEL_VERSION)" \
+            BUILD_DIR="$(BUILD_DIR)" \
+            IMAGE_SIZE="$(IMAGE_SIZE)"
+
 setup:
-	sudo -E bash $(SCRIPTS)/setup-host.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/setup-host.sh
 
 all: bootstrap kernel packages configure desktop boot-optimize usb-image
 	@echo ""
@@ -13,31 +28,31 @@ all: bootstrap kernel packages configure desktop boot-optimize usb-image
 	@echo "========================================="
 
 bootstrap:
-	sudo -E bash $(SCRIPTS)/00-bootstrap.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/00-bootstrap.sh
 
 kernel-config:
-	sudo -E bash $(SCRIPTS)/01-kernel-config.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/01-kernel-config.sh
 
 kernel:
-	sudo -E bash $(SCRIPTS)/02-kernel-build.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/02-kernel-build.sh
 
 packages:
-	sudo -E bash $(SCRIPTS)/03-packages.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/03-packages.sh
 
 configure:
-	sudo -E bash $(SCRIPTS)/04-configure.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/04-configure.sh
 
 desktop:
-	sudo -E bash $(SCRIPTS)/05-hyprland-setup.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/05-hyprland-setup.sh
 
 boot-optimize:
-	sudo -E bash $(SCRIPTS)/06-boot-optimize.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/06-boot-optimize.sh
 
 usb-image:
-	sudo -E bash $(SCRIPTS)/07-build-usb-image.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/07-build-usb-image.sh
 
 install:
-	sudo -E bash $(SCRIPTS)/08-install-to-nvme.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/08-install-to-nvme.sh
 
 clean:
 	@echo "Removing build directory..."
