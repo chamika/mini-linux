@@ -49,10 +49,24 @@ else
     # Strip to only loaded modules
     log_info "Running localmodconfig (stripping to loaded modules)..."
     log_warn "Make sure WiFi, Bluetooth, audio, camera, and USB devices are connected/active!"
-    make localmodconfig
+    yes "" | make localmodconfig
 
     # Apply XPS 13 specific tweaks
     log_info "Applying XPS 13 optimizations..."
+
+    # CPU family — Intel Core 2/newer (Whiskey Lake)
+    ./scripts/config --set-val CONFIG_MCORE2 y
+    ./scripts/config --set-val CONFIG_GENERIC_CPU n
+
+    # No 5-level paging — Whiskey Lake does not support it
+    ./scripts/config --disable CONFIG_X86_5LEVEL
+
+    # zswap — use zstd compressor and zsmalloc allocator
+    ./scripts/config --enable CONFIG_ZSWAP
+    ./scripts/config --set-str CONFIG_ZSWAP_COMPRESSOR_DEFAULT "zstd"
+    ./scripts/config --set-str CONFIG_ZSWAP_ZPOOL_DEFAULT "zsmalloc"
+    ./scripts/config --disable CONFIG_ZBUD
+    ./scripts/config --disable CONFIG_Z3FOLD_DEPRECATED
 
     # Build boot-critical drivers into kernel (not modules)
     ./scripts/config --enable CONFIG_NVME_CORE
@@ -73,6 +87,23 @@ else
     ./scripts/config --disable CONFIG_WLAN_VENDOR_BROADCOM
     ./scripts/config --disable CONFIG_WLAN_VENDOR_ATHEROS
     ./scripts/config --disable CONFIG_WLAN_VENDOR_MEDIATEK
+
+    # Disable legacy / irrelevant hardware
+    ./scripts/config --disable CONFIG_EISA
+    ./scripts/config --disable CONFIG_IP_DCCP
+    ./scripts/config --disable CONFIG_NF_CT_PROTO_DCCP
+    ./scripts/config --disable CONFIG_CDROM_PKTCDVD
+    ./scripts/config --disable CONFIG_TI_ST
+    ./scripts/config --disable CONFIG_ECHO
+    ./scripts/config --disable CONFIG_INPUT_EVBUG
+    ./scripts/config --disable CONFIG_KEYBOARD_ADP5589
+    ./scripts/config --disable CONFIG_SERIAL_KGDB_NMI
+    ./scripts/config --disable CONFIG_SENSORS_OXP
+    ./scripts/config --disable CONFIG_MFD_PCF50633
+    ./scripts/config --disable CONFIG_DRM_I2C_CH7006
+    ./scripts/config --disable CONFIG_DRM_I2C_SIL164
+    ./scripts/config --disable CONFIG_SND_SOC_IMG
+    ./scripts/config --disable CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
 
     # Performance tuning
     ./scripts/config --disable CONFIG_DEBUG_INFO
