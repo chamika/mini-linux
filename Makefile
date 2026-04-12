@@ -1,6 +1,9 @@
-.PHONY: all bootstrap kernel-config kernel packages configure desktop boot-optimize usb-image install clean help
+.PHONY: all setup bootstrap kernel-config kernel packages configure desktop boot-optimize usb-image install clean help
 
 SCRIPTS := scripts
+
+setup:
+	sudo bash $(SCRIPTS)/setup-host.sh
 
 all: bootstrap kernel packages configure desktop boot-optimize usb-image
 	@echo ""
@@ -44,6 +47,7 @@ clean:
 help:
 	@echo "Mini-Linux Build System"
 	@echo ""
+	@echo "  make setup          - Install build dependencies on Ubuntu (run once)"
 	@echo "  make all            - Full build pipeline (bootstrap → USB image)"
 	@echo "  make bootstrap      - Create Arch Linux base rootfs"
 	@echo "  make kernel-config  - Generate custom kernel config for XPS 13"
