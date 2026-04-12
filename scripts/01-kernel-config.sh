@@ -124,6 +124,9 @@ else
     # Disable watchdog (saves ~0.5s boot)
     ./scripts/config --disable CONFIG_WATCHDOG
 
+    # Disable btrfs — not used on this system, avoids crypto_lz4 dep issue in initramfs
+    ./scripts/config --disable CONFIG_BTRFS_FS
+
     make CC="${KERNEL_CC}" olddefconfig
 
     # Save the generated config back to the project

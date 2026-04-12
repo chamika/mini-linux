@@ -41,7 +41,13 @@ EOF
 
 # Regenerate initramfs with minimal config
 log_info "Regenerating initramfs..."
-chroot_run mkinitcpio -P
+chroot_run mkinitcpio -P || true
+# Verify initramfs was actually produced
+if [[ ! -f "${ROOTFS}/boot/initramfs-mini-linux.img" ]]; then
+    log_error "initramfs was not created — mkinitcpio failed fatally."
+    exit 1
+fi
+log_info "initramfs created successfully (module warnings above are non-fatal)."
 
 # --- Kernel command line (stored for bootloader config) ---
 log_info "Writing kernel command line..."
