@@ -8,7 +8,7 @@ MINI_LINUX_USER     ?= user
 MINI_LINUX_HOSTNAME ?= mini-linux
 KERNEL_VERSION      ?= 6.12
 BUILD_DIR           ?= /var/tmp/mini-linux-build
-IMAGE_SIZE          ?= 8G
+IMAGE_SIZE          ?= 7G
 
 # Pass these explicitly to sudo so they survive env_reset in sudoers
 SUDO_ENV := MINI_LINUX_USER="$(MINI_LINUX_USER)" \
