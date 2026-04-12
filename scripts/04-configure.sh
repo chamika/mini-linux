@@ -40,8 +40,17 @@ log_info "Creating user '${MINI_LINUX_USER}'..."
 # Remove stale lock files from a previous interrupted run
 rm -f "${ROOTFS}/etc/passwd.lock" "${ROOTFS}/etc/shadow.lock" \
       "${ROOTFS}/etc/group.lock"  "${ROOTFS}/etc/gshadow.lock"
-chroot_run useradd -m -G wheel,video,audio,input,network,bluetooth -s /bin/bash "${MINI_LINUX_USER}" || \
+# Create user — only primary group assignment; optional groups added below
+chroot_run useradd -m -s /bin/bash "${MINI_LINUX_USER}" 2>/dev/null || \
     log_warn "useradd returned non-zero (user may already exist — continuing)"
+# Add to optional groups only if they exist in the rootfs
+for grp in wheel video audio input network bluetooth; do
+    if chroot_run getent group "${grp}" &>/dev/null; then
+        chroot_run usermod -aG "${grp}" "${MINI_LINUX_USER}" 2>/dev/null || true
+    else
+        log_warn "Group '${grp}' not found in rootfs — skipping"
+    fi
+done
 # Set password by writing the hash directly — chpasswd fails via PAM in a foreign-arch chroot
 HASHED_PW=$(openssl passwd -6 "${MINI_LINUX_USER}")
 sed -i "s|^${MINI_LINUX_USER}:[^:]*:|${MINI_LINUX_USER}:${HASHED_PW}:|" "${ROOTFS}/etc/shadow"
@@ -97,5 +106,5 @@ chroot_run su - "${MINI_LINUX_USER}" -c "xdg-user-dirs-update" 2>/dev/null || tr
 
 log_ok "System configuration complete."
 
-umount "${ROOTFS}"
+umount "${ROOTFS}" 2>/dev/null || true
 trap - EXIT
