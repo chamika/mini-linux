@@ -30,7 +30,8 @@ apt install -y \
     mtools \
     qemu-utils \
     binfmt-support \
-    qemu-user-static
+    qemu-user-static \
+    zstd
 
 # pacman is not in Ubuntu repos — install from upstream
 if ! command -v pacman &>/dev/null; then
@@ -90,6 +91,39 @@ else
     log_ok "pacman already installed."
 fi
 
+install_arch_keyring() {
+    local keyring_dir="/usr/share/pacman/keyrings"
+    local mirror_url="https://mirrors.kernel.org/archlinux/core/os/x86_64/"
+    local tmpdir package_name
+
+    if [[ -f "${keyring_dir}/archlinux.gpg" ]]; then
+        log_ok "Arch Linux keyring already installed."
+        return
+    fi
+
+    log_info "Installing Arch Linux keyring files..."
+    tmpdir=$(mktemp -d)
+
+    package_name=$(curl -fsSL "${mirror_url}" \
+        | grep -oE 'archlinux-keyring-[^"]+-any\.pkg\.tar\.zst' \
+        | sort -V \
+        | tail -n1)
+
+    if [[ -z "${package_name}" ]]; then
+        rm -rf "${tmpdir}"
+        log_error "Unable to determine the latest archlinux-keyring package."
+        exit 1
+    fi
+
+    curl -fsSL "${mirror_url}${package_name}" -o "${tmpdir}/${package_name}"
+    mkdir -p "${keyring_dir}" "${tmpdir}/extract"
+    tar --zstd -xf "${tmpdir}/${package_name}" -C "${tmpdir}/extract" usr/share/pacman/keyrings
+    cp "${tmpdir}/extract/usr/share/pacman/keyrings/archlinux"* "${keyring_dir}/"
+    rm -rf "${tmpdir}"
+
+    log_ok "Arch Linux keyring files installed."
+}
+
 # Set up pacman for Arch Linux repos
 log_info "Configuring pacman for Arch Linux repositories..."
 mkdir -p /etc/pacman.d
@@ -110,6 +144,8 @@ Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
 EOF
     log_ok "pacman.conf created."
 fi
+
+install_arch_keyring
 
 # Initialize pacman keyring
 log_info "Initializing pacman keyring (this may take a minute)..."
