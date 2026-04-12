@@ -128,7 +128,7 @@ install_arch_keyring() {
 log_info "Configuring pacman for Arch Linux repositories..."
 mkdir -p /etc/pacman.d
 
-if [[ ! -f /etc/pacman.conf ]] || ! grep -q "\[core\]" /etc/pacman.conf; then
+if ! grep -q "^\[core\]" /etc/pacman.conf 2>/dev/null; then
     cat > /etc/pacman.conf <<'EOF'
 [options]
 HoldPkg     = pacman glibc
@@ -151,6 +151,10 @@ install_arch_keyring
 log_info "Initializing pacman keyring (this may take a minute)..."
 pacman-key --init
 pacman-key --populate archlinux
+
+# Sync package databases
+log_info "Syncing pacman package databases..."
+pacman -Sy --noconfirm
 
 log_ok "Host setup complete!"
 log_info ""
