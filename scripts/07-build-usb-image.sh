@@ -130,8 +130,8 @@ set default=0
 set timeout=0
 
 menuentry "Mini-Linux" {
-    search --no-floppy --fs-uuid --set=root ${ROOT_UUID}
-    linux   /boot/vmlinuz-mini-linux root=UUID=${ROOT_UUID} rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
+    search --no-floppy --label --set=root mini-linux
+    linux   /boot/vmlinuz-mini-linux root=LABEL=mini-linux rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
     initrd  /boot/initramfs-mini-linux.img
 }
 EOF

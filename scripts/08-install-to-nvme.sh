@@ -152,9 +152,9 @@ cat >> "$GRUB_CUSTOM" <<EOF
 
 # --- Mini-Linux START ---
 menuentry "Mini-Linux" --class arch --class gnu-linux --class os {
-    search --no-floppy --fs-uuid --set=root ${ROOT_UUID}
-    linux /EFI/mini-linux/vmlinuz root=UUID=${ROOT_UUID} rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
-    initrd /EFI/mini-linux/intel-ucode.img /EFI/mini-linux/initramfs.img
+    search --no-floppy --label --set=root mini-linux
+    linux   /boot/vmlinuz-mini-linux root=LABEL=mini-linux rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
+    initrd  /boot/intel-ucode.img /boot/initramfs-mini-linux.img
 }
 # --- Mini-Linux END ---
 EOF
