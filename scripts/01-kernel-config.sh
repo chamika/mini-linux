@@ -105,6 +105,10 @@ else
     ./scripts/config --disable CONFIG_SND_SOC_IMG
     ./scripts/config --disable CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE
 
+    # Clear Ubuntu-specific certificate paths that don't exist in vanilla source
+    ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
+    ./scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
+
     # Performance tuning
     ./scripts/config --disable CONFIG_DEBUG_INFO
     ./scripts/config --disable CONFIG_DEBUG_KERNEL
