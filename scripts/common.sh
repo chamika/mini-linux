@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # --- Build Configuration ---
-export BUILD_DIR="${BUILD_DIR:-/tmp/mini-linux-build}"
+export BUILD_DIR="${BUILD_DIR:-/var/tmp/mini-linux-build}"
 export ROOTFS="${BUILD_DIR}/rootfs"
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
