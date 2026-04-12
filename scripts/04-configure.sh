@@ -37,7 +37,11 @@ EOF
 
 # --- User account ---
 log_info "Creating user '${MINI_LINUX_USER}'..."
-chroot_run useradd -m -G wheel,video,audio,input,network,bluetooth -s /bin/bash "${MINI_LINUX_USER}" 2>/dev/null || true
+# Remove stale lock files from a previous interrupted run
+rm -f "${ROOTFS}/etc/passwd.lock" "${ROOTFS}/etc/shadow.lock" \
+      "${ROOTFS}/etc/group.lock"  "${ROOTFS}/etc/gshadow.lock"
+chroot_run useradd -m -G wheel,video,audio,input,network,bluetooth -s /bin/bash "${MINI_LINUX_USER}" || \
+    log_warn "useradd returned non-zero (user may already exist — continuing)"
 # Set password by writing the hash directly — chpasswd fails via PAM in a foreign-arch chroot
 HASHED_PW=$(openssl passwd -6 "${MINI_LINUX_USER}")
 sed -i "s|^${MINI_LINUX_USER}:[^:]*:|${MINI_LINUX_USER}:${HASHED_PW}:|" "${ROOTFS}/etc/shadow"
@@ -79,7 +83,14 @@ if [ -z "$WAYLAND_DISPLAY" ] && [ "$XDG_VTNR" -eq 1 ]; then
     exec Hyprland
 fi
 EOF
-chroot_run chown -R "${MINI_LINUX_USER}:${MINI_LINUX_USER}" "/home/${MINI_LINUX_USER}"
+# Use numeric UID/GID from rootfs passwd — name-based chown fails on the host
+USER_UID=$(grep "^${MINI_LINUX_USER}:" "${ROOTFS}/etc/passwd" | cut -d: -f3)
+USER_GID=$(grep "^${MINI_LINUX_USER}:" "${ROOTFS}/etc/passwd" | cut -d: -f4)
+if [[ -n "${USER_UID}" ]]; then
+    chown -R "${USER_UID}:${USER_GID}" "${ROOTFS}/home/${MINI_LINUX_USER}"
+else
+    log_warn "Could not find UID for '${MINI_LINUX_USER}' in rootfs passwd — skipping chown"
+fi
 
 # --- XDG user directories ---
 chroot_run su - "${MINI_LINUX_USER}" -c "xdg-user-dirs-update" 2>/dev/null || true
