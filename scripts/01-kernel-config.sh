@@ -94,6 +94,13 @@ else
     ./scripts/config --disable CONFIG_WLAN_VENDOR_BROADCOM
     ./scripts/config --disable CONFIG_WLAN_VENDOR_ATHEROS
     ./scripts/config --disable CONFIG_WLAN_VENDOR_MEDIATEK
+    # XPS 13 9380 has Intel Wireless-AC 9560 — iwlwifi + mvm required
+    ./scripts/config --enable CONFIG_WLAN_VENDOR_INTEL
+    ./scripts/config --module CONFIG_IWLWIFI
+    ./scripts/config --module CONFIG_IWLMVM
+    ./scripts/config --enable CONFIG_IWLWIFI_LEDS
+    ./scripts/config --enable CONFIG_CFG80211
+    ./scripts/config --enable CONFIG_MAC80211
 
     # Disable legacy / irrelevant hardware
     ./scripts/config --disable CONFIG_EISA

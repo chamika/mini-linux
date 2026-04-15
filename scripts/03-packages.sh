@@ -74,6 +74,7 @@ UTIL_PACKAGES=(
     tlp
     brightnessctl
     playerctl
+    networkmanager
     networkmanager-openvpn
     nm-connection-editor
     blueman
@@ -83,6 +84,7 @@ UTIL_PACKAGES=(
     p7zip
     wget
     curl
+    linux-firmware
 )
 
 ALL_PACKAGES=(
