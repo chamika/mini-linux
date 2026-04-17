@@ -27,7 +27,6 @@ BASE_PACKAGES=(
     wireplumber
     pipewire-pulse
     pipewire-alsa
-    iwd
     wpa_supplicant
     base-devel
     git

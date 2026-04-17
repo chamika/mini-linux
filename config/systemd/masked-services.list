@@ -3,3 +3,4 @@ remote-fs.target
 ModemManager.service
 NetworkManager-wait-online.service
 systemd-networkd-wait-online.service
+bolt.service

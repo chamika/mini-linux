@@ -159,6 +159,23 @@ menuentry "Mini-Linux" --class arch --class gnu-linux --class os {
 # --- Mini-Linux END ---
 EOF
 
+# --- Reduce GRUB timeout ---
+# Ubuntu's GRUB defaults to 5s. Reduce to 1s so Mini-Linux boots faster.
+# This is still long enough to select Ubuntu if needed.
+log_info "Reducing GRUB timeout to 1 second..."
+GRUB_DEFAULT_CFG="/etc/default/grub"
+if [[ -f "${GRUB_DEFAULT_CFG}" ]]; then
+    CURRENT_TIMEOUT=$(grep -oP '(?<=GRUB_TIMEOUT=)\S+' "${GRUB_DEFAULT_CFG}" || echo "5")
+    if [[ "${CURRENT_TIMEOUT}" -gt 1 ]] 2>/dev/null; then
+        sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=1/' "${GRUB_DEFAULT_CFG}"
+        log_ok "GRUB_TIMEOUT reduced from ${CURRENT_TIMEOUT}s → 1s (saves ~${CURRENT_TIMEOUT}s per boot)."
+    else
+        log_info "GRUB_TIMEOUT is already ${CURRENT_TIMEOUT}s — no change needed."
+    fi
+else
+    log_warn "/etc/default/grub not found — skipping timeout reduction."
+fi
+
 # Regenerate GRUB config
 log_info "Regenerating GRUB config..."
 update-grub
