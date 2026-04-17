@@ -37,6 +37,9 @@ fi
 if [[ -f "${PREBUILT_CONFIG}" && $(wc -l < "${PREBUILT_CONFIG}") -gt 10 ]]; then
     log_info "Using pre-built kernel config from ${PREBUILT_CONFIG}"
     cp "${PREBUILT_CONFIG}" .config
+    # Clear Ubuntu host-specific certificate paths before olddefconfig can inherit them
+    ./scripts/config --set-str CONFIG_SYSTEM_TRUSTED_KEYS ""
+    ./scripts/config --set-str CONFIG_SYSTEM_REVOCATION_KEYS ""
     make CC="${KERNEL_CC}" olddefconfig
     log_ok "Kernel config installed from pre-built config."
 else
