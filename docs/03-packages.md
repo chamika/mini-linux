@@ -2,19 +2,19 @@
 
 ## What Gets Installed
 
-### Desktop Environment (~120MB)
-Hyprland compositor, Waybar status bar, Wofi launcher, Mako notifications, screen lock, wallpaper utility, screenshot tools.
+### Desktop Environment (~150MB)
+GNOME Shell compositor, GDM display manager, GNOME Control Center (settings), desktop portal, keyring.
 
-### Applications (~250MB)
-- **Kitty** — GPU-accelerated terminal with native splits
-- **Thunar** — Lightweight file manager with thumbnail support
-- **Google Chrome** — Built from AUR
+### Applications (~100MB)
+- **Firefox** — Fast, privacy-respecting web browser (from official repos)
+- **Nautilus** — GNOME file manager with thumbnail support
+- **GNOME Console** — Simple, modern terminal
 
 ### Audio (~5MB)
 PipeWire JACK bridge and PulseAudio volume control (PipeWire base installed in bootstrap).
 
 ### Fonts & Theming (~150MB)
-Noto fonts (full Unicode), JetBrains Mono Nerd Font (terminal/bar), Papirus icons, Qt Wayland support.
+Noto fonts (full Unicode), JetBrains Mono Nerd Font, Papirus icons, GTK3/GTK4 theme support.
 
 ### System Utilities (~30MB)
 TLP (battery), brightness/media controls, Bluetooth manager, firewall, archive tools.

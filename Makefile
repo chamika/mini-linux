@@ -1,4 +1,4 @@
-.PHONY: all setup bootstrap kernel-config kernel packages configure desktop boot-optimize usb-image install clean help
+.PHONY: all setup bootstrap kernel-config kernel packages configure desktop boot-optimize usb-image install kernel-update clean help
 
 SCRIPTS := scripts
 
@@ -8,7 +8,7 @@ MINI_LINUX_USER     ?= user
 MINI_LINUX_HOSTNAME ?= mini-linux
 KERNEL_VERSION      ?= 6.12
 BUILD_DIR           ?= /var/tmp/mini-linux-build
-IMAGE_SIZE          ?= 7G
+IMAGE_SIZE          ?= 10G
 
 # Pass these explicitly to sudo so they survive env_reset in sudoers
 SUDO_ENV := MINI_LINUX_USER="$(MINI_LINUX_USER)" \
@@ -43,7 +43,7 @@ configure:
 	sudo $(SUDO_ENV) bash $(SCRIPTS)/04-configure.sh
 
 desktop:
-	sudo $(SUDO_ENV) bash $(SCRIPTS)/05-hyprland-setup.sh
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/05-desktop-setup.sh
 
 boot-optimize:
 	sudo $(SUDO_ENV) bash $(SCRIPTS)/06-boot-optimize.sh
@@ -53,6 +53,9 @@ usb-image:
 
 install:
 	sudo $(SUDO_ENV) bash $(SCRIPTS)/08-install-to-nvme.sh
+
+kernel-update:
+	sudo $(SUDO_ENV) bash $(SCRIPTS)/09-kernel-update.sh
 
 clean:
 	@echo "Removing build directory..."
@@ -69,8 +72,9 @@ help:
 	@echo "  make kernel         - Compile and install custom kernel"
 	@echo "  make packages       - Install desktop and application packages"
 	@echo "  make configure      - Apply system configuration"
-	@echo "  make desktop        - Set up Hyprland desktop environment"
+	@echo "  make desktop        - Set up GNOME desktop environment"
 	@echo "  make boot-optimize  - Apply boot time optimizations"
 	@echo "  make usb-image      - Generate bootable USB image"
 	@echo "  make install        - Install to NVMe (dual-boot with Ubuntu)"
+	@echo "  make kernel-update  - Update kernel on installed NVMe without data loss"
 	@echo "  make clean          - Remove build directory"

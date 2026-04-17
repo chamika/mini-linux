@@ -22,32 +22,24 @@ Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
 EOF
 fi
 
-# --- Desktop environment (Hyprland + Wayland) ---
+# --- Desktop environment (GNOME) ---
 DESKTOP_PACKAGES=(
-    hyprland
-    xdg-desktop-portal-hyprland
-    waybar
-    wofi
-    mako
-    swaylock
-    hyprpaper
-    polkit-gnome
-    grim
-    slurp
-    wl-clipboard
+    gnome-shell
+    gdm
+    gnome-control-center
+    xdg-desktop-portal-gnome
+    gnome-keyring
     xdg-utils
     xdg-user-dirs
 )
 
 # --- Applications ---
 APP_PACKAGES=(
-    kitty
-    thunar
-    thunar-volman
+    gnome-console
+    nautilus
+    firefox
     gvfs
     gvfs-mtp
-    tumbler
-    ffmpegthumbnailer
 )
 
 # --- Audio ---
@@ -65,8 +57,6 @@ THEME_PACKAGES=(
     papirus-icon-theme
     gtk3
     gtk4
-    qt5-wayland
-    qt6-wayland
 )
 
 # --- System utilities ---
@@ -76,7 +66,6 @@ UTIL_PACKAGES=(
     playerctl
     networkmanager
     networkmanager-openvpn
-    nm-connection-editor
     blueman
     nftables
     htop
@@ -111,27 +100,6 @@ cleanup_mounts_pkg() {
 trap cleanup_mounts_pkg EXIT
 
 arch-chroot "${ROOTFS}" pacman -Syu --noconfirm "${ALL_PACKAGES[@]}"
-
-# --- AUR packages (Google Chrome) ---
-log_info "Setting up AUR package build..."
-
-# Create a build user for makepkg (cannot run as root)
-arch-chroot "${ROOTFS}" useradd -m -s /bin/bash builder 2>/dev/null || true
-arch-chroot "${ROOTFS}" bash -c "echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder"
-
-# Install google-chrome from AUR
-log_info "Building google-chrome from AUR (this may take a few minutes)..."
-arch-chroot "${ROOTFS}" su - builder -c "
-    cd /tmp
-    git clone https://aur.archlinux.org/google-chrome.git
-    cd google-chrome
-    makepkg -si --noconfirm
-    cd /tmp && rm -rf google-chrome
-"
-
-# Clean up build user
-arch-chroot "${ROOTFS}" userdel -r builder 2>/dev/null || true
-arch-chroot "${ROOTFS}" rm -f /etc/sudoers.d/builder
 
 cleanup_mounts_pkg
 trap - EXIT

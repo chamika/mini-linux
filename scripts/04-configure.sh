@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 04-configure.sh — System configuration: locale, timezone, users, network, services.
+# 04-configure.sh — System configuration: locale, timezone, users, network, services. GDM provides graphical login.
 
 source "$(dirname "$0")/common.sh"
 require_root
@@ -66,6 +66,7 @@ chroot_run systemctl enable bluetooth.service
 chroot_run systemctl enable tlp.service
 chroot_run systemctl enable nftables.service
 chroot_run systemctl enable systemd-timesyncd.service
+chroot_run systemctl enable gdm.service
 
 # --- Mask unnecessary services ---
 log_info "Masking unnecessary services..."
@@ -75,24 +76,10 @@ while IFS= read -r service; do
     chroot_run systemctl mask "$service" 2>/dev/null || true
 done < "${CONFIG_DIR}/systemd/masked-services.list"
 
-# --- Autologin on TTY1 ---
-log_info "Configuring autologin for '${MINI_LINUX_USER}' on TTY1..."
-mkdir -p "${ROOTFS}/etc/systemd/system/getty@tty1.service.d"
-sed "s/MINI_LINUX_USER/${MINI_LINUX_USER}/g" \
-    "${CONFIG_DIR}/systemd/getty-autologin.conf" \
-    > "${ROOTFS}/etc/systemd/system/getty@tty1.service.d/autologin.conf"
+# --- XDG user directories ---
+chroot_run su - "${MINI_LINUX_USER}" -c "xdg-user-dirs-update" 2>/dev/null || true
 
-# --- Auto-start Hyprland ---
-log_info "Configuring Hyprland auto-start..."
-BASH_PROFILE="${ROOTFS}/home/${MINI_LINUX_USER}/.bash_profile"
-mkdir -p "${ROOTFS}/home/${MINI_LINUX_USER}"
-cat > "${BASH_PROFILE}" <<'EOF'
-# Auto-start Hyprland on TTY1
-if [ -z "$WAYLAND_DISPLAY" ] && [ "$XDG_VTNR" -eq 1 ]; then
-    exec Hyprland
-fi
-EOF
-# Use numeric UID/GID from rootfs passwd — name-based chown fails on the host
+# Fix home directory ownership
 USER_UID=$(grep "^${MINI_LINUX_USER}:" "${ROOTFS}/etc/passwd" | cut -d: -f3)
 USER_GID=$(grep "^${MINI_LINUX_USER}:" "${ROOTFS}/etc/passwd" | cut -d: -f4)
 if [[ -n "${USER_UID}" ]]; then
@@ -100,9 +87,6 @@ if [[ -n "${USER_UID}" ]]; then
 else
     log_warn "Could not find UID for '${MINI_LINUX_USER}' in rootfs passwd — skipping chown"
 fi
-
-# --- XDG user directories ---
-chroot_run su - "${MINI_LINUX_USER}" -c "xdg-user-dirs-update" 2>/dev/null || true
 
 log_ok "System configuration complete."
 

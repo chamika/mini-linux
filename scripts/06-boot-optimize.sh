@@ -93,7 +93,7 @@ EOF
 
 log_ok "Boot optimizations applied."
 log_info "Expected boot timeline:"
-log_info "  UEFI POST → GRUB → Kernel → systemd → Hyprland"
+log_info "  UEFI POST → GRUB → Kernel → systemd → GNOME"
 log_info "  ~0.5s       ~1s    ~1.5s    ~2.5s     ~1s = ~6.5s"
 
 umount "${ROOTFS}" 2>/dev/null || true
