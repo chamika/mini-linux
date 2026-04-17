@@ -75,6 +75,9 @@ else
     ./scripts/config --disable CONFIG_ZBUD
     ./scripts/config --disable CONFIG_Z3FOLD_DEPRECATED
 
+    # Crypto modules required by systemd in initramfs (mkinitcpio systemd hook)
+    ./scripts/config --module CONFIG_CRYPTO_LZ4
+
     # Build boot-critical drivers into kernel (not modules)
     ./scripts/config --enable CONFIG_NVME_CORE
     ./scripts/config --enable CONFIG_BLK_DEV_NVME

@@ -121,7 +121,7 @@ Reboot and select **Mini-Linux** from the GRUB menu.
 | `MINI_LINUX_USER` | `user` | Username created in the rootfs |
 | `MINI_LINUX_HOSTNAME` | `mini-linux` | Hostname written to `/etc/hostname` |
 | `KERNEL_VERSION` | `6.12` | Linux kernel version to build |
-| `BUILD_DIR` | `/tmp/mini-linux-build` | Scratch space for rootfs and kernel source |
+| `BUILD_DIR` | `/var/tmp/mini-linux-build` | Scratch space for rootfs and kernel source |
 | `IMAGE_SIZE` | `8G` | Size of the USB image |
 
 Override on the command line, e.g.:
@@ -133,7 +133,7 @@ make configure MINI_LINUX_USER=chamika MINI_LINUX_HOSTNAME=mini
 ## Cleaning up
 
 ```bash
-make clean   # removes /tmp/mini-linux-build (does not touch build/mini-linux.img)
+make clean   # removes /var/tmp/mini-linux-build (does not touch build/mini-linux.img)
 ```
 
 ## Documentation

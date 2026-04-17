@@ -58,8 +58,8 @@ kernel-update:
 	sudo $(SUDO_ENV) bash $(SCRIPTS)/09-kernel-update.sh
 
 clean:
-	@echo "Removing build directory..."
-	sudo rm -rf /tmp/mini-linux-build
+	@echo "Removing build directory (${BUILD_DIR})..."
+	sudo rm -rf "$(BUILD_DIR)"
 	@echo "Clean complete."
 
 help:
