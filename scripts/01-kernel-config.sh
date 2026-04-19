@@ -79,13 +79,20 @@ else
     ./scripts/config --disable CONFIG_Z3FOLD_DEPRECATED
 
     # Crypto modules required by systemd in initramfs (mkinitcpio systemd hook)
-    ./scripts/config --module CONFIG_CRYPTO_LZ4
+    # Built-in (not module) so initramfs doesn't need to load it
+    ./scripts/config --enable CONFIG_CRYPTO_LZ4
 
     # Build boot-critical drivers into kernel (not modules)
+    # This shrinks the initramfs and eliminates module-load time during boot
     ./scripts/config --enable CONFIG_NVME_CORE
     ./scripts/config --enable CONFIG_BLK_DEV_NVME
     ./scripts/config --enable CONFIG_DRM_I915
     ./scripts/config --enable CONFIG_EXT4_FS
+
+    # HID subsystem built-in — needed for USB keyboard during early boot
+    ./scripts/config --enable CONFIG_HID
+    ./scripts/config --enable CONFIG_HID_GENERIC
+    ./scripts/config --enable CONFIG_USB_HID
 
     # Disable unnecessary subsystems
     ./scripts/config --disable CONFIG_DRM_NOUVEAU
@@ -133,6 +140,15 @@ else
     ./scripts/config --disable CONFIG_DEBUG_INFO
     ./scripts/config --disable CONFIG_DEBUG_KERNEL
     ./scripts/config --enable CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+
+    # Kernel compression — lz4 decompresses ~2x faster than zstd at boot
+    ./scripts/config --disable CONFIG_KERNEL_ZSTD
+    ./scripts/config --enable CONFIG_KERNEL_LZ4
+
+    # Built-in kernel command line (fallback if bootloader doesn't provide one)
+    ./scripts/config --enable CONFIG_CMDLINE_BOOL
+    ./scripts/config --set-str CONFIG_CMDLINE "quiet loglevel=3 nowatchdog nmi_watchdog=0 tsc=reliable"
+    ./scripts/config --disable CONFIG_CMDLINE_OVERRIDE
 
     # Disable watchdog (saves ~0.5s boot)
     ./scripts/config --disable CONFIG_WATCHDOG

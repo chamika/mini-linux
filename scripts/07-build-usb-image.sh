@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 07-build-usb-image.sh — Package the rootfs into a bootable USB image.
-# Creates a GPT disk image with EFI + root partitions, installs GRUB for UEFI boot.
+# Uses systemd-boot + Unified Kernel Image (UKI) for near-zero bootloader overhead.
 
 source "$(dirname "$0")/common.sh"
 require_root
@@ -99,33 +99,70 @@ UUID=${EFI_UUID}    /boot/efi   vfat    defaults,umask=0077         0 2
 tmpfs               /tmp        tmpfs   defaults,noatime,mode=1777,size=2G  0 0
 EOF
 
-# Install GRUB for UEFI
-log_info "Installing GRUB bootloader..."
-# Ensure grub is installed in the rootfs
-if [[ ! -f "${MNT}/usr/bin/grub-install" ]]; then
-    log_info "grub not found — installing..."
-    # Need bind-mount for pacman to work
-    mount --bind "${MNT}" "${MNT}"
-    arch-chroot "${MNT}" pacman -S --noconfirm grub efibootmgr
-    umount "${MNT}"
-fi
+# --- Write the real kernel command line with the actual root UUID ---
+log_info "Writing kernel command line with root UUID..."
+mkdir -p "${MNT}/etc/kernel"
+echo "root=UUID=${ROOT_UUID} rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable" > "${MNT}/etc/kernel/cmdline"
 
-# Run grub-install from the HOST against the loop device directly.
-# Running inside arch-chroot won't work because the EFI partition is
-# mounted on the host, not inside the chroot.
-grub-install \
-    --target=x86_64-efi \
-    --efi-directory="${MNT}/boot/efi" \
-    --boot-directory="${MNT}/boot" \
-    --removable \
-    --no-nvram
+# --- Regenerate UKI with the real root UUID baked in ---
+log_info "Regenerating UKI with correct root UUID..."
+mount --bind "${MNT}" "${MNT}"
+arch-chroot "${MNT}" mkinitcpio -P || true
+umount "${MNT}" 2>/dev/null  # undo the inner bind mount
 
-# Write grub.cfg manually — grub-mkconfig won't find our custom kernel
-# (it's not named vmlinuz-linux and there's no /etc/grub.d/10_linux entry for it)
-log_info "Writing GRUB config..."
-ROOT_UUID=$(blkid -s UUID -o value "${ROOT_PART}")
-mkdir -p "${MNT}/boot/grub"
-cat > "${MNT}/boot/grub/grub.cfg" <<EOF
+UKI_PATH="${MNT}/boot/EFI/Linux/mini-linux.efi"
+
+# --- Install systemd-boot (replaces GRUB — near-zero overhead) ---
+if [[ -f "${UKI_PATH}" ]]; then
+    log_info "Installing systemd-boot to ESP..."
+    # systemd-boot auto-discovers UKI files in EFI/Linux/
+    mkdir -p "${MNT}/boot/efi/EFI/Linux"
+    mkdir -p "${MNT}/boot/efi/EFI/BOOT"
+    mkdir -p "${MNT}/boot/efi/loader"
+
+    # Copy UKI to the ESP where systemd-boot will find it
+    cp "${UKI_PATH}" "${MNT}/boot/efi/EFI/Linux/mini-linux.efi"
+
+    # Install systemd-boot EFI binaries
+    # The bootloader binary goes to EFI/BOOT/BOOTX64.EFI for removable media
+    if [[ -f "${MNT}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" ]]; then
+        cp "${MNT}/usr/lib/systemd/boot/efi/systemd-bootx64.efi" \
+           "${MNT}/boot/efi/EFI/BOOT/BOOTX64.EFI"
+    else
+        log_warn "systemd-boot EFI binary not found — falling back to bootctl install"
+        mount --bind "${MNT}" "${MNT}"
+        arch-chroot "${MNT}" bootctl install --esp-path=/boot/efi 2>/dev/null || true
+        umount "${MNT}" 2>/dev/null
+    fi
+
+    # Minimal loader.conf — timeout 0 means boot immediately
+    cat > "${MNT}/boot/efi/loader/loader.conf" <<EOF
+timeout 0
+console-mode auto
+EOF
+
+    log_ok "systemd-boot installed with UKI."
+else
+    # Fallback: UKI generation failed, use GRUB with traditional initramfs
+    log_warn "UKI not found — falling back to GRUB bootloader."
+
+    if [[ ! -f "${MNT}/usr/bin/grub-install" ]]; then
+        log_info "grub not found — installing..."
+        mount --bind "${MNT}" "${MNT}"
+        arch-chroot "${MNT}" pacman -S --noconfirm grub efibootmgr
+        umount "${MNT}"
+    fi
+
+    grub-install \
+        --target=x86_64-efi \
+        --efi-directory="${MNT}/boot/efi" \
+        --boot-directory="${MNT}/boot" \
+        --removable \
+        --no-nvram
+
+    log_info "Writing GRUB config..."
+    mkdir -p "${MNT}/boot/grub"
+    cat > "${MNT}/boot/grub/grub.cfg" <<EOF
 set default=0
 set timeout=0
 
@@ -135,6 +172,7 @@ menuentry "Mini-Linux" {
     initrd  /boot/initramfs-mini-linux.img
 }
 EOF
+fi
 
 # Unmount (trap will handle cleanup)
 log_info "Unmounting..."

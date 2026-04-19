@@ -3,8 +3,8 @@
 # This script:
 #   1. Formats the target partitions (root + swap)
 #   2. Copies the rootfs
-#   3. Installs kernel + initramfs to the shared ESP
-#   4. Adds a GRUB entry for dual-boot
+#   3. Installs UKI (or kernel + initramfs) to the shared ESP
+#   4. Registers a direct UEFI boot entry (bypasses GRUB) + GRUB fallback
 #
 # REQUIRES: Unallocated partitions already created (use GParted or fdisk beforehand).
 # Run this from Ubuntu.
@@ -120,29 +120,80 @@ if [[ "$SWAP_PART" != "none" && -n "$SWAP_PART" ]]; then
     echo "UUID=${SWAP_UUID}   none        swap    defaults                    0 0" >> "${MNT}/etc/fstab"
 fi
 
-# --- Install kernel + initramfs to shared ESP ---
-log_info "Installing kernel to shared ESP..."
+# --- Write kernel command line with actual root UUID ---
+log_info "Writing kernel command line with root UUID..."
+mkdir -p "${MNT}/etc/kernel"
+echo "root=UUID=${ROOT_UUID} rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable" > "${MNT}/etc/kernel/cmdline"
+
+# --- Regenerate UKI with real root UUID ---
+log_info "Regenerating UKI with correct root UUID..."
+mount --bind "${MNT}" "${MNT}"
+arch-chroot "${MNT}" mkinitcpio -P || true
+umount "${MNT}" 2>/dev/null  # undo inner bind mount
+
+# --- Install UKI or traditional kernel to shared ESP ---
+UKI_SRC="${MNT}/boot/EFI/Linux/mini-linux.efi"
 mkdir -p "${ESP_MOUNT}/EFI/mini-linux"
+
+if [[ -f "${UKI_SRC}" ]]; then
+    # --- Primary: UKI (single .efi file, bypasses GRUB) ---
+    log_info "Installing UKI to shared ESP..."
+    mkdir -p "${ESP_MOUNT}/EFI/Linux"
+    cp "${UKI_SRC}" "${ESP_MOUNT}/EFI/Linux/mini-linux.efi"
+    log_ok "UKI installed at ${ESP_MOUNT}/EFI/Linux/mini-linux.efi"
+
+    # Register a direct UEFI boot entry that boots the UKI without GRUB
+    if command -v efibootmgr &>/dev/null; then
+        log_info "Registering UEFI boot entry for Mini-Linux..."
+        # Find the ESP disk and partition number
+        ESP_DISK=$(lsblk -ndo PKNAME "${ESP_DEV}")
+        ESP_PARTNUM=$(cat "/sys/class/block/$(basename "${ESP_DEV}")/partition" 2>/dev/null)
+
+        if [[ -n "${ESP_DISK}" && -n "${ESP_PARTNUM}" ]]; then
+            # Remove any existing Mini-Linux entry
+            EXISTING=$(efibootmgr 2>/dev/null | grep -i "Mini-Linux" | grep -oP '^\w+' | sed 's/Boot//')
+            for entry in ${EXISTING}; do
+                efibootmgr -q -b "${entry}" -B 2>/dev/null || true
+            done
+
+            # Create new entry pointing directly at the UKI
+            efibootmgr -q \
+                --create \
+                --disk "/dev/${ESP_DISK}" \
+                --part "${ESP_PARTNUM}" \
+                --label "Mini-Linux" \
+                --loader "\\EFI\\Linux\\mini-linux.efi" 2>/dev/null \
+                && log_ok "UEFI boot entry registered (direct UKI boot, bypasses GRUB)." \
+                || log_warn "efibootmgr failed — use GRUB fallback entry instead."
+        else
+            log_warn "Could not determine ESP disk/partition — skipping UEFI boot entry."
+        fi
+    else
+        log_warn "efibootmgr not found — install it to register a direct UEFI boot entry."
+    fi
+else
+    log_warn "UKI not found — installing traditional kernel + initramfs to ESP."
+fi
+
+# --- Always install traditional files as GRUB fallback ---
+log_info "Installing kernel + initramfs to ESP (GRUB fallback)..."
 cp "${MNT}/boot/vmlinuz-mini-linux" "${ESP_MOUNT}/EFI/mini-linux/vmlinuz"
 
-# Copy initramfs (try different naming conventions)
-for initrd_name in initramfs-linux.img initramfs-mini-linux.img; do
+for initrd_name in initramfs-mini-linux.img initramfs-linux.img; do
     if [[ -f "${MNT}/boot/${initrd_name}" ]]; then
         cp "${MNT}/boot/${initrd_name}" "${ESP_MOUNT}/EFI/mini-linux/initramfs.img"
         break
     fi
 done
 
-# Copy Intel microcode
 if [[ -f "${MNT}/boot/intel-ucode.img" ]]; then
     cp "${MNT}/boot/intel-ucode.img" "${ESP_MOUNT}/EFI/mini-linux/intel-ucode.img"
 fi
 
-# --- Add GRUB entry ---
-log_info "Adding GRUB entry for dual-boot..."
+# --- Add GRUB fallback entry ---
+log_info "Adding GRUB fallback entry for dual-boot..."
 GRUB_CUSTOM="/etc/grub.d/40_custom"
 
-# Check if entry already exists and remove old one
 if grep -q "Mini-Linux" "$GRUB_CUSTOM" 2>/dev/null; then
     log_warn "GRUB entry for Mini-Linux already exists. Updating..."
     sed -i '/# --- Mini-Linux START ---/,/# --- Mini-Linux END ---/d' "$GRUB_CUSTOM"
@@ -160,8 +211,6 @@ menuentry "Mini-Linux" --class arch --class gnu-linux --class os {
 EOF
 
 # --- Reduce GRUB timeout ---
-# Ubuntu's GRUB defaults to 5s. Reduce to 1s so Mini-Linux boots faster.
-# This is still long enough to select Ubuntu if needed.
 log_info "Reducing GRUB timeout to 1 second..."
 GRUB_DEFAULT_CFG="/etc/default/grub"
 if [[ -f "${GRUB_DEFAULT_CFG}" ]]; then
@@ -187,8 +236,15 @@ trap - EXIT
 log_ok "Mini-Linux installed to NVMe!"
 log_info ""
 log_info "  Root partition: ${ROOT_PART} (UUID: ${ROOT_UUID})"
-log_info "  Kernel at: ${ESP_MOUNT}/EFI/mini-linux/vmlinuz"
-log_info "  GRUB entry added — select 'Mini-Linux' at boot menu"
+if [[ -f "${UKI_SRC}" ]]; then
+    log_info "  UKI at:         ${ESP_MOUNT}/EFI/Linux/mini-linux.efi"
+    log_info "  Boot method:    Direct UEFI → UKI (fastest, no GRUB)"
+    log_info "  Fallback:       Select 'Mini-Linux' from GRUB menu"
+else
+    log_info "  Kernel at:      ${ESP_MOUNT}/EFI/mini-linux/vmlinuz"
+    log_info "  Boot method:    Select 'Mini-Linux' from GRUB menu"
+fi
 log_info ""
-log_info "Reboot and select 'Mini-Linux' from the GRUB menu to test."
+log_info "Reboot and Mini-Linux will boot directly via UEFI."
+log_info "To select Ubuntu, use your BIOS boot menu (F12) or GRUB."
 log_info "Default password: ${MINI_LINUX_USER} (change with 'passwd' after login)"

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # 06-boot-optimize.sh — Apply boot time optimizations to rootfs.
+# Generates a Unified Kernel Image (UKI) that bundles kernel + initramfs +
+# cmdline + microcode into a single .efi binary for near-instant boot.
 
 source "$(dirname "$0")/common.sh"
 require_root
@@ -21,39 +23,71 @@ if ! chroot_run bash -c "command -v mkinitcpio" &>/dev/null; then
     chroot_run pacman -S --noconfirm --needed mkinitcpio
 fi
 
-# --- Initramfs ---
+# Install systemd-ukify for Unified Kernel Image generation
+log_info "Installing systemd-ukify for UKI generation..."
+chroot_run pacman -S --noconfirm --needed systemd-ukify
+
+# --- Initramfs + UKI ---
 log_info "Installing optimized mkinitcpio.conf..."
 cp "${CONFIG_DIR}/mkinitcpio.conf" "${ROOTFS}/etc/mkinitcpio.conf"
 
-# Create a preset for our custom kernel (no Arch 'linux' package = no preset file)
-log_info "Creating mkinitcpio preset for custom kernel..."
+# --- Kernel command line (used by UKI and bootloader) ---
+log_info "Writing kernel command line..."
+mkdir -p "${ROOTFS}/etc/kernel"
+# ROOTFS_UUID is a placeholder — replaced at install time (08-install-to-nvme.sh)
+# or at image build time (07-build-usb-image.sh) with the real UUID.
+CMDLINE="root=UUID=ROOTFS_UUID rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable"
+echo "${CMDLINE}" > "${ROOTFS}/etc/kernel/cmdline"
+
+# Create a mkinitcpio preset that generates both a traditional initramfs
+# and a Unified Kernel Image (.efi). The UKI bundles:
+#   - kernel (vmlinuz)
+#   - initramfs
+#   - kernel command line (/etc/kernel/cmdline)
+#   - CPU microcode (intel-ucode, if present)
+# into a single EFI-bootable binary — no separate initrd loading phase.
+log_info "Creating mkinitcpio preset for UKI..."
 mkdir -p "${ROOTFS}/etc/mkinitcpio.d"
-cat > "${ROOTFS}/etc/mkinitcpio.d/mini-linux.preset" <<EOF
+cat > "${ROOTFS}/etc/mkinitcpio.d/mini-linux.preset" <<'EOF'
 ALL_config="/etc/mkinitcpio.conf"
 ALL_kver="/boot/vmlinuz-mini-linux"
 
+# Embed Intel microcode into the UKI
+ALL_microcode=(/boot/*-ucode.img)
+
 PRESETS=('default')
 
+# Traditional initramfs (fallback for GRUB dual-boot)
 default_config="/etc/mkinitcpio.conf"
 default_image="/boot/initramfs-mini-linux.img"
 default_options=""
+
+# Unified Kernel Image — single .efi file for direct UEFI/systemd-boot
+default_uki="/boot/EFI/Linux/mini-linux.efi"
+default_options="--cmdline /etc/kernel/cmdline"
 EOF
 
-# Regenerate initramfs with minimal config
-log_info "Regenerating initramfs..."
+# Ensure UKI output directory exists
+mkdir -p "${ROOTFS}/boot/EFI/Linux"
+
+# Regenerate initramfs + UKI
+log_info "Regenerating initramfs and UKI..."
 chroot_run mkinitcpio -P || true
-# Verify initramfs was actually produced
+
+# Verify outputs
 if [[ ! -f "${ROOTFS}/boot/initramfs-mini-linux.img" ]]; then
     log_error "initramfs was not created — mkinitcpio failed fatally."
     exit 1
 fi
-log_info "initramfs created successfully (module warnings above are non-fatal)."
+log_info "initramfs created successfully."
 
-# --- Kernel command line (stored for bootloader config) ---
-log_info "Writing kernel command line..."
-mkdir -p "${ROOTFS}/etc/kernel"
-CMDLINE="root=UUID=ROOTFS_UUID rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable"
-echo "${CMDLINE}" > "${ROOTFS}/etc/kernel/cmdline"
+if [[ -f "${ROOTFS}/boot/EFI/Linux/mini-linux.efi" ]]; then
+    UKI_SIZE=$(du -h "${ROOTFS}/boot/EFI/Linux/mini-linux.efi" | cut -f1)
+    log_ok "UKI created: /boot/EFI/Linux/mini-linux.efi (${UKI_SIZE})"
+else
+    log_warn "UKI was not created — systemd-ukify may have failed."
+    log_warn "Falling back to traditional initramfs boot (still works, but slower)."
+fi
 
 # --- Filesystem optimizations ---
 log_info "Configuring filesystem optimizations..."
@@ -92,9 +126,9 @@ RuntimeMaxUse=20M
 EOF
 
 log_ok "Boot optimizations applied."
-log_info "Expected boot timeline (NVMe install):"
-log_info "  UEFI POST → GRUB → Kernel → Initrd → Userspace → GNOME"
-log_info "  ~11s        ~1s    ~1.2s    ~2.4s    ~3.5s      = ~19s"
+log_info "Expected boot timeline (NVMe with UKI + systemd-boot):"
+log_info "  UEFI POST → systemd-boot → UKI (kernel+initrd) → Userspace → GNOME"
+log_info "  ~11s        ~0s             ~1.5s                  ~3.5s      = ~16s"
 log_info "  (UEFI POST time varies by BIOS settings; enable Fast Boot in BIOS to reduce it)"
 
 umount "${ROOTFS}" 2>/dev/null || true

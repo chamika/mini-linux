@@ -20,9 +20,9 @@ A minimal, fast-booting Linux distribution built on Arch Linux for the Dell XPS 
 ├─────────────────────────────────────────────┤
 │  systemd · NetworkManager · PipeWire        │
 ├─────────────────────────────────────────────┤
-│  Custom Linux Kernel (XPS 13 only)          │
+│  Unified Kernel Image (kernel+initrd+cmd)   │
 ├─────────────────────────────────────────────┤
-│  Ubuntu GRUB (shared EFI)                   │
+│  systemd-boot / Direct UEFI boot            │
 └─────────────────────────────────────────────┘
 ```
 
