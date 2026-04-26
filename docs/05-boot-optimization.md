@@ -1,6 +1,6 @@
 # Step 5: Boot Optimization
 
-## Target: <7 seconds (UEFI POST to GNOME ready)
+## Target: <7 seconds (UEFI POST to Hyprland ready)
 
 ## What We Optimize
 
@@ -71,15 +71,15 @@ Socket-activated (start on demand, not at boot):
 
 ```
 USB Boot:
-  UEFI → systemd-boot → UKI (kernel+initrd+cmdline) → systemd → GNOME
+  UEFI → systemd-boot → UKI (kernel+initrd+cmdline) → systemd → Hyprland
   ~11s    ~0s             ~1.5s                         ~3.5s     = ~16s
 
 NVMe Boot:
-  UEFI → Direct EFI entry → UKI → systemd → GNOME
+  UEFI → Direct EFI entry → UKI → systemd → Hyprland
   ~11s   ~0s                 ~1.5s  ~3.5s     = ~16s
 
 NVMe Fallback (dual-boot):
-  UEFI → GRUB → kernel + initrd → systemd → GNOME
+  UEFI → GRUB → kernel + initrd → systemd → Hyprland
   ~11s   ~1s    ~3.5s              ~3.5s     = ~19s
 ```
 

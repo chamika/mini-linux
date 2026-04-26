@@ -3,12 +3,12 @@
 ## What Gets Installed
 
 ### Desktop Environment (~150MB)
-GNOME Shell compositor, GDM display manager, GNOME Control Center (settings), desktop portal, keyring.
+Hyprland Wayland compositor, Waybar status bar, Wofi launcher, Hyprpaper wallpaper daemon, Swaylock screen locker, Swayidle idle management, xdg-desktop-portal-hyprland, polkit agent, gnome-keyring.
 
 ### Applications (~100MB)
 - **Firefox** — Fast, privacy-respecting web browser (from official repos)
-- **Nautilus** — GNOME file manager with thumbnail support
-- **GNOME Console** — Simple, modern terminal
+- **Thunar** — Lightweight file manager with volume and thumbnail support
+- **foot** — Minimal, fast Wayland-native terminal emulator
 
 ### Audio (~5MB)
 PipeWire JACK bridge and PulseAudio volume control (PipeWire base installed in bootstrap).

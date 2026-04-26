@@ -22,21 +22,28 @@ Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
 EOF
 fi
 
-# --- Desktop environment (GNOME) ---
+# --- Desktop environment (Hyprland) ---
 DESKTOP_PACKAGES=(
-    gnome-shell
-    gdm
-    gnome-control-center
-    xdg-desktop-portal-gnome
-    gnome-keyring
+    hyprland
+    xdg-desktop-portal-hyprland
+    xdg-desktop-portal
+    waybar
+    wofi
+    hyprpaper
+    swaylock
+    swayidle
     xdg-utils
     xdg-user-dirs
+    polkit-gnome
+    gnome-keyring
 )
 
 # --- Applications ---
 APP_PACKAGES=(
-    gnome-console
-    nautilus
+    foot
+    thunar
+    thunar-volman
+    tumbler
     firefox
     gvfs
     gvfs-mtp

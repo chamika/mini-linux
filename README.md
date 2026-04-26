@@ -5,8 +5,8 @@ A minimal, fast-booting Linux distribution built on Arch Linux for the Dell XPS 
 ## What You Get
 
 - **<7 second cold boot** to a modern Wayland desktop
-- **GNOME** desktop environment
-- **Firefox**, **Nautilus** file manager, **GNOME Console** terminal
+- **Hyprland** desktop environment (Wayland tiling compositor)
+- **Firefox**, **Thunar** file manager, **foot** terminal
 - Full hardware support: WiFi, Bluetooth, audio, camera, touchpad
 - Dual-boots alongside Ubuntu via GRUB
 
@@ -14,9 +14,9 @@ A minimal, fast-booting Linux distribution built on Arch Linux for the Dell XPS 
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Firefox · Nautilus · GNOME Console         │
+│  Firefox · Thunar · foot terminal           │
 ├─────────────────────────────────────────────┤
-│  GNOME Shell + GDM                          │
+│  Hyprland + Waybar (TTY autologin)          │
 ├─────────────────────────────────────────────┤
 │  systemd · NetworkManager · PipeWire        │
 ├─────────────────────────────────────────────┤
@@ -70,9 +70,9 @@ Run each stage manually if you want more control or need to re-run a single step
 | 1 | `make bootstrap` | Creates the Arch Linux base rootfs (~2.3 GB) |
 | 2 | `make kernel-config` | Downloads Linux source and sets up `.config` for the XPS 13 |
 | 3 | `make kernel` | Compiles the kernel and installs it into the rootfs |
-| 4 | `make packages` | Installs GNOME Shell, GDM, Firefox, Nautilus, PipeWire, etc. |
-| 5 | `make configure` | Sets locale, timezone, hostname, user account, and services |
-| 6 | `make desktop` | Configures GNOME desktop defaults and theme |
+| 4 | `make packages` | Installs Hyprland, Waybar, Firefox, Thunar, PipeWire, etc. |
+| 5 | `make configure` | Sets locale, timezone, hostname, user account, TTY autologin |
+| 6 | `make desktop` | Configures Hyprland, Waybar, Wofi, foot, GTK theme |
 | 7 | `make boot-optimize` | Strips initramfs, tunes systemd/journal, configures NVMe scheduler |
 | 8 | `make usb-image` | Packages the rootfs into a bootable 8 GB USB image |
 

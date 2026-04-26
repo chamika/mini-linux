@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 04-configure.sh — System configuration: locale, timezone, users, network, services. GDM provides graphical login.
+# 04-configure.sh — System configuration: locale, timezone, users, network, services. TTY autologin launches Hyprland.
 
 source "$(dirname "$0")/common.sh"
 require_root
@@ -66,7 +66,13 @@ chroot_run systemctl enable bluetooth.service
 chroot_run systemctl enable tlp.service
 chroot_run systemctl enable nftables.service
 chroot_run systemctl enable systemd-timesyncd.service
-chroot_run systemctl enable gdm.service
+# TTY autologin — .bash_profile launches Hyprland on tty1
+mkdir -p "${ROOTFS}/etc/systemd/system/getty@tty1.service.d"
+cat > "${ROOTFS}/etc/systemd/system/getty@tty1.service.d/autologin.conf" <<EOF
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin ${MINI_LINUX_USER} --noclear %I \$TERM
+EOF
 
 # --- Mask unnecessary services ---
 log_info "Masking unnecessary services..."
