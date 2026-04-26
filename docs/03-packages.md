@@ -2,13 +2,13 @@
 
 ## What Gets Installed
 
-### Desktop Environment (~150MB)
-GNOME Shell compositor, GDM display manager, GNOME Control Center (settings), desktop portal, keyring.
+### Desktop Environment (~400MB)
+XFCE 4 desktop with panel, window manager, and goodies pack. LightDM display manager with GTK greeter. Xorg server with libinput touchpad driver. xdg-desktop-portal-gtk for file dialogs and notifications. polkit agent and gnome-keyring for credentials.
 
 ### Applications (~100MB)
 - **Firefox** — Fast, privacy-respecting web browser (from official repos)
-- **Nautilus** — GNOME file manager with thumbnail support
-- **GNOME Console** — Simple, modern terminal
+- **Thunar** — XFCE file manager with volume and thumbnail support (included in xfce4-goodies)
+- **xfce4-terminal** — Lightweight terminal emulator (included in xfce4-goodies)
 
 ### Audio (~5MB)
 PipeWire JACK bridge and PulseAudio volume control (PipeWire base installed in bootstrap).

@@ -22,21 +22,24 @@ Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch
 EOF
 fi
 
-# --- Desktop environment (GNOME) ---
+# --- Desktop environment (XFCE 4 + X11) ---
 DESKTOP_PACKAGES=(
-    gnome-shell
-    gdm
-    gnome-control-center
-    xdg-desktop-portal-gnome
-    gnome-keyring
+    xfce4
+    xfce4-goodies
+    lightdm
+    lightdm-gtk-greeter
+    xorg-server
+    xf86-input-libinput
+    xdg-desktop-portal-gtk
     xdg-utils
     xdg-user-dirs
+    polkit-gnome
+    gnome-keyring
+    network-manager-applet
 )
 
 # --- Applications ---
 APP_PACKAGES=(
-    gnome-console
-    nautilus
     firefox
     gvfs
     gvfs-mtp

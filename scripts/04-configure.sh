@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 04-configure.sh — System configuration: locale, timezone, users, network, services. GDM provides graphical login.
+# 04-configure.sh — System configuration: locale, timezone, users, network, services. LightDM provides graphical login.
 
 source "$(dirname "$0")/common.sh"
 require_root
@@ -66,7 +66,7 @@ chroot_run systemctl enable bluetooth.service
 chroot_run systemctl enable tlp.service
 chroot_run systemctl enable nftables.service
 chroot_run systemctl enable systemd-timesyncd.service
-chroot_run systemctl enable gdm.service
+chroot_run systemctl enable lightdm.service
 
 # --- Mask unnecessary services ---
 log_info "Masking unnecessary services..."
