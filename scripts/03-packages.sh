@@ -106,7 +106,7 @@ cleanup_mounts_pkg() {
 }
 trap cleanup_mounts_pkg EXIT
 
-arch-chroot "${ROOTFS}" pacman -Syu --noconfirm "${ALL_PACKAGES[@]}"
+arch-chroot "${ROOTFS}" pacman -Syyu --noconfirm "${ALL_PACKAGES[@]}"
 
 cleanup_mounts_pkg
 trap - EXIT
