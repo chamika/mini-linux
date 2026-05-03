@@ -52,8 +52,9 @@ log_info "initramfs created successfully (module warnings above are non-fatal)."
 # --- Kernel command line (stored for bootloader config) ---
 log_info "Writing kernel command line..."
 mkdir -p "${ROOTFS}/etc/kernel"
-CMDLINE="root=UUID=ROOTFS_UUID rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable"
+CMDLINE="root=UUID=ROOTFS_UUID rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable resume=UUID=SWAP_UUID_PLACEHOLDER"
 echo "${CMDLINE}" > "${ROOTFS}/etc/kernel/cmdline"
+log_info "  (SWAP_UUID_PLACEHOLDER is replaced with the real swap UUID by 08-install-to-nvme.sh)"
 
 # --- Filesystem optimizations ---
 log_info "Configuring filesystem optimizations..."

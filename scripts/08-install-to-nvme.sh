@@ -115,6 +115,7 @@ UUID=${ESP_UUID}    /boot/efi   vfat    defaults,umask=0077         0 2
 tmpfs               /tmp        tmpfs   defaults,noatime,mode=1777,size=2G  0 0
 EOF
 
+SWAP_UUID=""
 if [[ "$SWAP_PART" != "none" && -n "$SWAP_PART" ]]; then
     SWAP_UUID=$(blkid -s UUID -o value "$SWAP_PART")
     echo "UUID=${SWAP_UUID}   none        swap    defaults                    0 0" >> "${MNT}/etc/fstab"
@@ -138,6 +139,35 @@ if [[ -f "${MNT}/boot/intel-ucode.img" ]]; then
     cp "${MNT}/boot/intel-ucode.img" "${ESP_MOUNT}/EFI/mini-linux/intel-ucode.img"
 fi
 
+# --- Hibernate setup ---
+if [[ -n "$SWAP_UUID" ]]; then
+    log_info "Enabling hibernate (swap UUID: ${SWAP_UUID})..."
+
+    # Patch the resume= placeholder written by 06-boot-optimize.sh
+    if [[ -f "${MNT}/etc/kernel/cmdline" ]]; then
+        sed -i "s/resume=UUID=SWAP_UUID_PLACEHOLDER/resume=UUID=${SWAP_UUID}/" "${MNT}/etc/kernel/cmdline"
+    fi
+
+    # Suspend-then-hibernate: suspend immediately, hibernate after 30 min idle
+    mkdir -p "${MNT}/etc/systemd/sleep.conf.d"
+    cat > "${MNT}/etc/systemd/sleep.conf.d/hibernate.conf" <<EOF
+[Sleep]
+AllowHibernation=yes
+AllowSuspendThenHibernate=yes
+HibernateDelaySec=30min
+EOF
+    log_ok "Hibernate enabled. Resume will load saved RAM from swap on next boot."
+    log_info "  Use 'systemctl hibernate' to hibernate manually."
+    log_info "  System will auto-hibernate 30 min after suspend (suspend-then-hibernate)."
+else
+    log_warn "No swap partition provided — hibernate disabled."
+    log_warn "  To enable later: create a swap partition and add 'resume=UUID=<swap-uuid>' to kernel cmdline."
+    # Remove the placeholder from cmdline so it doesn't cause boot issues
+    if [[ -f "${MNT}/etc/kernel/cmdline" ]]; then
+        sed -i "s/ resume=UUID=SWAP_UUID_PLACEHOLDER//" "${MNT}/etc/kernel/cmdline"
+    fi
+fi
+
 # --- Add GRUB entry ---
 log_info "Adding GRUB entry for dual-boot..."
 GRUB_CUSTOM="/etc/grub.d/40_custom"
@@ -148,12 +178,15 @@ if grep -q "Mini-Linux" "$GRUB_CUSTOM" 2>/dev/null; then
     sed -i '/# --- Mini-Linux START ---/,/# --- Mini-Linux END ---/d' "$GRUB_CUSTOM"
 fi
 
+MINI_LINUX_CMDLINE="root=LABEL=mini-linux rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable"
+[[ -n "$SWAP_UUID" ]] && MINI_LINUX_CMDLINE+=" resume=UUID=${SWAP_UUID}"
+
 cat >> "$GRUB_CUSTOM" <<EOF
 
 # --- Mini-Linux START ---
 menuentry "Mini-Linux" --class arch --class gnu-linux --class os {
     search --no-floppy --label --set=root mini-linux
-    linux   /boot/vmlinuz-mini-linux root=LABEL=mini-linux rw quiet loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 nowatchdog nmi_watchdog=0 tsc=reliable
+    linux   /boot/vmlinuz-mini-linux ${MINI_LINUX_CMDLINE}
     initrd  /boot/intel-ucode.img /boot/initramfs-mini-linux.img
 }
 # --- Mini-Linux END ---
@@ -187,8 +220,15 @@ trap - EXIT
 log_ok "Mini-Linux installed to NVMe!"
 log_info ""
 log_info "  Root partition: ${ROOT_PART} (UUID: ${ROOT_UUID})"
+[[ -n "$SWAP_UUID" ]] && log_info "  Swap partition: ${SWAP_PART} (UUID: ${SWAP_UUID}) — hibernate enabled"
 log_info "  Kernel at: ${ESP_MOUNT}/EFI/mini-linux/vmlinuz"
 log_info "  GRUB entry added — select 'Mini-Linux' at boot menu"
 log_info ""
 log_info "Reboot and select 'Mini-Linux' from the GRUB menu to test."
 log_info "Default password: ${MINI_LINUX_USER} (change with 'passwd' after login)"
+if [[ -n "$SWAP_UUID" ]]; then
+    log_info ""
+    log_info "Hibernate boot timeline (resume from disk):"
+    log_info "  UEFI POST → GRUB → Kernel → Load RAM from swap → GNOME"
+    log_info "  ~4s         ~1s    ~0.5s    ~3-5s               = ~9s"
+fi
